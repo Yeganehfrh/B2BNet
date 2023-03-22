@@ -1,0 +1,19 @@
+name: b2bnet
+
+dependencies:
+  - python
+  - numpy
+  - matplotlib
+  - seaborn
+  - pandas
+  - scikit-learn
+  - flake8
+  - ipykernel
+  - jupyter
+  - notebook
+  - xarray
+  - netcdf4
+  - dask
+  - pip
+  - pip:
+    - mne
