@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 import torch
 from torch import nn
+# from torchmetrics import Accuracy
 
 
 class B2BNetModel(pl.LightningModule):
@@ -17,21 +18,24 @@ class B2BNetModel(pl.LightningModule):
         h, y = self.rnn(x)
         y = self.fc(y)
         y = y.permute(1, 0, 2).squeeze(1)
-        # y = torch.argmax(y, dim=2).to(torch.float)
         return y
 
     def training_step(self, batch, batch_idx):
         X_input, X_output, y_class, y_text = batch
         y_hat = self(X_input)
         loss = self.loss(y_hat, y_class)
+        accuracy = (y_hat.argmax(dim=1) == y_class).float().mean()
         self.log('train/loss', loss)
+        self.log('train/accuracy', accuracy)
         return loss
 
     def validation_step(self, batch, batch_idx):
         X_input, X_output, y_class, y_text = batch
         y_hat = self(X_input)
         loss = self.loss(y_hat, y_class)
+        accuracy = (y_hat.argmax(dim=1) == y_class).float().mean()
         self.log('val/loss', loss)
+        self.log('val/accuracy', accuracy)
         return loss
 
     def configure_optimizers(self):
