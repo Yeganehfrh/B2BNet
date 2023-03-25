@@ -1,4 +1,6 @@
-data/
+/data/
 .DS_Store
 lightning_logs/
 .ipynb_checkpoints/
+__pycache__/
+*.pyc
