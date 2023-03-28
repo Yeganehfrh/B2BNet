@@ -42,11 +42,13 @@ def process_input(path,
                          root=path
                          )
     raw = read_raw_bids(bids_path, extra_params={'preload': True}, verbose=False)
-    raw.pick_types(eeg=True)
+    raw.set_montage('standard_1020')
 
-    # interpolate bad channels
-    if raw.info['bads'] != []:
-        raw.interpolate_bads()
+    # interpolate bad channels if any
+    raw.interpolate_bads(verbose=verbose)
+
+    # pick eeg channels
+    raw.pick_types(eeg=True)
 
     # resampling
     raw.resample(resampling_frq)
