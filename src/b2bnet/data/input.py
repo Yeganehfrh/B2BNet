@@ -1,13 +1,13 @@
 from mne_bids import BIDSPath, read_raw_bids
 
 
-def preprocess_data(path,
-                    subject,
-                    task,
-                    resampling_frq=None,
-                    ref_chs=None,
-                    filter_bounds=None,
-                    verbose=False):
+def process_input(path,
+                  subject,
+                  task,
+                  resampling_frq=None,
+                  ref_chs=None,
+                  filter_bounds=None,
+                  verbose=False):
 
     """
     Parameters
