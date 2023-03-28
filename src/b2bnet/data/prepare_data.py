@@ -65,3 +65,9 @@ def preprocess_data(path,
         raw.set_eeg_reference(ref_channels=ref_chs, verbose=verbose)
 
     return raw
+
+
+# setup data
+
+
+# import data
