@@ -8,8 +8,11 @@ class B2BNetModel(pl.LightningModule):
     """B2BNet model.
     """
 
-    def __init__(self, input_size=58, n_timesteps=128, hidden_size=2, n_cls_labels=3):
+    def __init__(self, input_size, n_timesteps, n_cls_labels, text_dim, hidden_size=2,
+                 example_input_array=None):
         super().__init__()
+        self.example_input_array = example_input_array
+
         self.encoder = nn.RNN(
             input_size=input_size, hidden_size=hidden_size,
             num_layers=n_timesteps, batch_first=True)
@@ -23,8 +26,8 @@ class B2BNetModel(pl.LightningModule):
         self.b2b = nn.RNN(
             input_size=hidden_size, hidden_size=input_size,
             num_layers=n_timesteps, batch_first=True)
-        
-        self.fc_text = nn.Linear(hidden_size, 1024)
+
+        self.fc_text = nn.Linear(hidden_size, text_dim)
 
         self.loss_cls = nn.CrossEntropyLoss()
         self.loss_reconn = nn.MSELoss()

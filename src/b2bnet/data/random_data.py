@@ -8,7 +8,7 @@ class RandomDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         X_input = torch.randn(50, 128, 58)
-        y_b2b = torch.randn(1, 128, 58).repeat(50, 1, 1)
+        y_b2b = torch.randn(1, 128, 58).repeat(50, 1, 1)  # TODO: include the correlation y_b2b and the X_input
         y_class = torch.randint(low=0, high=3, size=(50,))
         y_text = torch.randn(50, 1024)
 
