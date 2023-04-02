@@ -6,6 +6,8 @@ from .tcn_block import TCNBlock
 class TCN(nn.Module):
     def __init__(self, n_timesteps, output_length, n_features, kernel_size, dilation_base, dropout=0.2):
         super().__init__()
+        
+        self.dilation_base = dilation_base
 
         n_layers = math.ceil(
             math.log(
@@ -15,13 +17,17 @@ class TCN(nn.Module):
         )
 
         self.blocks = []
+        layer_output_length = n_timesteps
         for i in range(n_layers):
-            dilation = dilation_base ** i
+            dilation = self.dilation_base ** i
+            layer_output_length /= 2
+            stride = 2 if layer_output_length > output_length else 1
             block = TCNBlock(
                 n_timesteps,
                 n_features,
                 kernel_size,
                 dilation,
+                stride
             )
             self.blocks.append(block)
         self.blocks = nn.Sequential(*self.blocks)

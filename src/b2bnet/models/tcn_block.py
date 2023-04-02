@@ -8,7 +8,8 @@ class TCNBlock(nn.Module):
                  n_timesteps: int,
                  n_features: int,
                  kernel_size: int,
-                 dilation: int):
+                 dilation: int,
+                 stride: int):
         super().__init__()
 
         self.n_timesteps = n_timesteps
@@ -17,7 +18,7 @@ class TCNBlock(nn.Module):
         self.dilation = dilation
 
         self.conv1 = nn.Sequential(
-            nn.Conv1d(n_features, n_features, kernel_size, dilation=self.dilation),
+            nn.Conv1d(n_features, n_features, kernel_size, dilation=self.dilation, stride=stride),
             nn.ReLU(),
             nn.Dropout(0.2)
         )
