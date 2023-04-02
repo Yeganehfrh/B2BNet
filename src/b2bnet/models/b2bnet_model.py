@@ -12,21 +12,28 @@ class B2BNetModel(pl.LightningModule):
                  example_input_array=None):
         super().__init__()
         self.example_input_array = example_input_array
+        
+        # feature extractor
 
+        # encoder
         self.encoder = nn.RNN(
             input_size=input_size, hidden_size=hidden_size,
             num_layers=n_timesteps, batch_first=True)
 
-        self.fc = nn.Linear(hidden_size, n_cls_labels)  # classifier
-
+        # decoder
         self.decoder = nn.RNN(
             input_size=hidden_size, hidden_size=input_size,
             num_layers=n_timesteps, batch_first=True)
 
+        # classification output model
+        self.fc = nn.Linear(hidden_size, n_cls_labels)
+
+        # B2B output model
         self.b2b = nn.RNN(
             input_size=hidden_size, hidden_size=input_size,
             num_layers=n_timesteps, batch_first=True)
 
+        # text output model
         self.fc_text = nn.Linear(hidden_size, text_dim)
 
         self.loss_cls = nn.CrossEntropyLoss()
