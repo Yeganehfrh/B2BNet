@@ -27,8 +27,11 @@ class OtkaDataModule(pl.LightningDataModule):
         y_class = torch.from_numpy(ds['y_class'].values)
         y_text = torch.zeros_like(y_class)
 
-        X_input = X_input[:, :100, :]
-        y_b2b = y_b2b[:, :100, :]
+        # X_input = X_input[:, :100, :]
+        # y_b2b = y_b2b[:, :100, :]
+
+        # X_input = torch.split(X_input[:, :39700, :], split_size_or_sections=100, dim=1)
+        # y_b2b = torch.split(y_b2b, split_size_or_sections=100, dim=1)
 
         self.dataset = torch.utils.data.TensorDataset(X_input, y_b2b, y_class, y_text)
 
