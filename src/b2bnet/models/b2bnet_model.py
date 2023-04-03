@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
-import torch
+import torch  # noqa
 from torch import nn
+# from src.b2bnet import TCN
 # from torchmetrics import Accuracy
 
 
@@ -8,12 +9,19 @@ class B2BNetModel(pl.LightningModule):
     """B2BNet model.
     """
 
-    def __init__(self, input_size, n_timesteps, n_cls_labels, text_dim, hidden_size=2,
+    def __init__(self, input_size, n_timesteps, output_length, n_cls_labels, text_dim,
+                 n_subjects, hidden_size=2, kernel_size=8, dilation_base=2, subject_embedding_dim=4,
                  example_input_array=None):
         super().__init__()
         self.example_input_array = example_input_array
-        
-        # feature extractor
+
+        # # feature extractor
+        # self.feature_extractor = TCN(n_timesteps=n_timesteps, output_length=output_length,
+        #                              n_features=input_size, kernel_size=kernel_size,
+        #                              dilation_base=dilation_base)
+
+        # subject embedding
+        self.subject_embedding = nn.Embedding(n_subjects, subject_embedding_dim)
 
         # encoder
         self.encoder = nn.RNN(
@@ -41,7 +49,14 @@ class B2BNetModel(pl.LightningModule):
         self.loss_b2b = nn.MSELoss()
         self.loss_text = nn.MSELoss()
 
-    def forward(self, x):
+    def forward(self, x, subject_ids=None):
+        # append subject embedding
+        if subject_ids is not None:
+            subject_features = self.subject_embedding(subject_ids)
+            subject_features = subject_features.unsqueeze(1).repeat(1, x.shape[1], 1)
+            x = torch.cat([x, subject_features], dim=2)
+            print('Adding subject features to input: ', x.shape)
+
         y_enc, h_enc = self.encoder(x)
         y_cls = self.fc(h_enc[-1, :, :])  # select last state
         x_reconn, h_dec = self.decoder(h_enc.permute(1, 0, 2))  # permute to batch first
@@ -50,8 +65,8 @@ class B2BNetModel(pl.LightningModule):
         return y_cls, x_reconn, y_b2b, y_text
 
     def training_step(self, batch, batch_idx):
-        X_input, y_b2b, y_cls, y_text = batch
-        y_cls_hat, X_reconn, y_b2b_hat, y_text_hat = self(X_input)
+        X_input, subject_ids, y_b2b, y_cls, y_text = batch
+        y_cls_hat, X_reconn, y_b2b_hat, y_text_hat = self(X_input, subject_ids)
 
         loss_cls = self.loss_cls(y_cls_hat, y_cls)
         loss_reconn = self.loss_reconn(X_reconn, X_input)
@@ -71,8 +86,8 @@ class B2BNetModel(pl.LightningModule):
         return loss_cls
 
     def validation_step(self, batch, batch_idx):
-        X_input, y_b2b, y_cls, y_text = batch
-        y_cls_hat, X_reconn, y_b2b_hat, y_text_hat = self(X_input)
+        X_input, subject_ids, y_b2b, y_cls, y_text = batch
+        y_cls_hat, X_reconn, y_b2b_hat, y_text_hat = self(X_input, subject_ids)
 
         loss_cls = self.loss_cls(y_cls_hat, y_cls)
         loss_reconn = self.loss_reconn(X_reconn, X_input)

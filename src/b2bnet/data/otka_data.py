@@ -23,17 +23,15 @@ class OtkaDataModule(pl.LightningDataModule):
     def prepare_data(self):
         ds = xr.open_dataset(self.data_dir / 'otka.nc5')
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
+        # segment X_input into 128 time steps
+        X_input = X_input.unfold(1, 128, 128)
+        subject_ids = ...  # TODO: get subject ids from X_input
+        # TODO: remove subject dimension from X_input
         y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
         y_text = torch.zeros_like(y_class)
 
-        # X_input = X_input[:, :100, :]
-        # y_b2b = y_b2b[:, :100, :]
-
-        # X_input = torch.split(X_input[:, :39700, :], split_size_or_sections=100, dim=1)
-        # y_b2b = torch.split(y_b2b, split_size_or_sections=100, dim=1)
-
-        self.dataset = torch.utils.data.TensorDataset(X_input, y_b2b, y_class, y_text)
+        self.dataset = torch.utils.data.TensorDataset(X_input, subject_ids, y_b2b, y_class, y_text)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(self.train_dataset, batch_size=32)
