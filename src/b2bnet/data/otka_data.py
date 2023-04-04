@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import torch
+import torch.nn.functional as F
 import xarray as xr
 import torch.utils.data as data
 from pathlib import Path
@@ -32,6 +33,10 @@ class OtkaDataModule(pl.LightningDataModule):
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
+
+        # normalize
+        X_input = F.normalize(X_input, dim=2)
+        y_b2b = F.normalize(y_b2b, dim=2)
 
         # cleanups
         # truncate y_b2b to match X_input
