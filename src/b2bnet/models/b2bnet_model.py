@@ -87,7 +87,7 @@ class B2BNetModel(pl.LightningModule):
         self.log('train/loss', loss)
         self.log('train/accuracy', accuracy)
 
-        return loss_cls
+        return loss
 
     def validation_step(self, batch, batch_idx):
         X_input, subject_ids, y_b2b, y_cls = batch
@@ -106,7 +106,7 @@ class B2BNetModel(pl.LightningModule):
         self.log('val/loss', loss)
         self.log('val/accuracy', accuracy)
 
-        return loss_cls
+        return loss
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
