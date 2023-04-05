@@ -2,8 +2,9 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import xarray as xr
-import torch.utils.data as data
+import torch.utils.data as data  # noqa
 from pathlib import Path
+from sklearn.model_selection import train_test_split
 
 
 class OtkaDataModule(pl.LightningDataModule):
@@ -11,7 +12,7 @@ class OtkaDataModule(pl.LightningDataModule):
     """
     def __init__(self,
                  data_dir: Path = Path('data/'),
-                 train_ratio: float = 0.8,
+                 train_ratio: float = 0.7,
                  segment_size: int = 128,
                  batch_size: int = 32):
         super().__init__()
@@ -37,6 +38,11 @@ class OtkaDataModule(pl.LightningDataModule):
         ds.close()
 
         n_subjects = X_input.shape[0]
+        print('>>>>', y_class.shape)
+        train_ids, val_ids = train_test_split(torch.arange(0, n_subjects),
+                                              train_size=self.train_ratio,
+                                              stratify=y_class)
+        print(train_ids, val_ids)
 
         # normalize
         X_input = F.normalize(X_input, dim=2)
@@ -59,12 +65,8 @@ class OtkaDataModule(pl.LightningDataModule):
         # remove subject dimension
         subject_ids = subject_ids.flatten(0, 1)
 
-        # split subjects into train and validation
-        train_ids, val_ids = data.random_split(dataset=torch.arange(0, n_subjects),
-                                               lengths=[self.train_ratio, 1.0 - self.train_ratio])
-
-        train_idx = torch.where(torch.isin(subject_ids, torch.tensor(train_ids.indices)))[0]
-        val_idx = torch.where(torch.isin(subject_ids, torch.tensor(val_ids.indices)))[0]
+        train_idx = torch.where(torch.isin(subject_ids, train_ids))[0]
+        val_idx = torch.where(torch.isin(subject_ids, val_ids))[0]
 
         # continue removing subject dimension
         X_input = X_input.flatten(0, 1)
