@@ -5,10 +5,10 @@ In this project, we leverage Inter-brain coupling to quantify shared information
 - [x] multioutput model
 - [x] multioutput evaluation
 
-- [ ] import data
+- [x] import data
 - [ ] model visulization
 - [ ] evaluation visulization
-- [ ] model training
+- [x] model training
 
 - [ ] text embedding
 
@@ -17,4 +17,7 @@ In this project, we leverage Inter-brain coupling to quantify shared information
 - [ ] graph embedding evaluation
 - [ ] graph embedding training
 
-- [ ] abstract
+- [x] abstract
+- [x] first draft
+- [ ] final draft
+- [ ] stratified cross validation
