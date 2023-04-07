@@ -38,11 +38,9 @@ class OtkaDataModule(pl.LightningDataModule):
         ds.close()
 
         n_subjects = X_input.shape[0]
-        print('>>>>', y_class.shape)
         train_ids, val_ids = train_test_split(torch.arange(0, n_subjects),
                                               train_size=self.train_ratio,
                                               stratify=y_class)
-        print(train_ids, val_ids)
 
         # normalize
         X_input = F.normalize(X_input, dim=2)
