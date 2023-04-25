@@ -133,7 +133,13 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                                                           y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1))
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size)
+        rnd_g = torch.Generator()
+        rnd_g.manual_seed(42)
+
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size, generator=rnd_g)
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.val_dataset, batch_size=self.batch_size)
+        rnd_g = torch.Generator()
+        rnd_g.manual_seed(42)
+
+        return torch.utils.data.DataLoader(self.val_dataset, batch_size=self.batch_size, generator=rnd_g)
