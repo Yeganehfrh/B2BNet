@@ -27,7 +27,6 @@ class OtkaDataModule(pl.LightningDataModule):
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
-
         ds.close()
 
         n_subjects = X_input.shape[0]
@@ -96,9 +95,13 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # read data from file
         ds = xr.open_dataset(self.data_dir / 'otka.nc5')
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
-        y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
-        y_class = torch.from_numpy(ds['y_class'].values)
+        # y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
 
+        # TODO: remove and modify the following three lines
+        y_b2b = X_input[0, :, :].repeat(X_input.shape[0]-1, 1, 1)
+        X_input = X_input[1:, :, :]
+        y_class = torch.from_numpy(ds['y_class'].values)[1:]
+ 
         ds.close()
 
         # segment
@@ -114,7 +117,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
 
         # cleanups
         # truncate y_b2b to match X_input
-        y_b2b = y_b2b[:, :X_input.shape[1], :]
+        # y_b2b = y_b2b[:, :X_input.shape[1], :]
 
         # create subject ids
         subject_ids = torch.arange(0, X_input.shape[0]).reshape(-1, 1, 1).repeat(1, X_input.shape[1], 1)
