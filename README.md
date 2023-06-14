@@ -1,23 +1,6 @@
 # B2BNet
-In this project, we leverage Inter-brain coupling to quantify shared information across the brains, and more specificly, trace the transmission of information between the people's and the hypnotist's brain.
+This project presents a deep neural network aimed at quantifying brain-to-brain coupling during the process of hypnosis induction. Our approach uses a multi-output sequence-to-sequence deep neural network applied to raw EEG data recorded from 51 participants using 59 electrodes. At its core, the model employs a one-dimensional convolutional neural network (CNN) and a long short-term memory (LSTM) encoder to embed the spatial-temporal dynamics inherent in the raw EEG signal into a lower-dimensional space.
+This embedded representation is then utilized for two downstream heads: one head to predict the hypnotist's brain activity, and the other head to classify the level of hypnotic depth. A detailed schematic of the model architecture can be found in the subsequent figure.
 
-## TODO
-- [x] multioutput model
-- [x] multioutput evaluation
 
-- [x] import data
-- [ ] model visulization
-- [ ] evaluation visulization
-- [x] model training
-
-- [ ] text embedding
-
-- [ ] graph embedding
-- [ ] graph embedding visulization
-- [ ] graph embedding evaluation
-- [ ] graph embedding training
-
-- [x] abstract
-- [x] first draft
-- [ ] final draft
-- [ ] stratified cross validation
+![DL_architecture](https://github.com/Yeganehfrh/B2BNet/assets/36996819/eb471b6b-aa16-482f-b8e5-df431df8761a)
