@@ -3,4 +3,4 @@ This project presents a deep neural network aimed at quantifying brain-to-brain 
 This embedded representation is then utilized for two downstream heads: one head to predict the hypnotist's brain activity, and the other head to classify the level of hypnotic depth. A detailed schematic of the model architecture can be found in the subsequent figure.
 
 
-![DL_architecture](https://github.com/Yeganehfrh/B2BNet/assets/36996819/eb471b6b-aa16-482f-b8e5-df431df8761a)
+![DL_architecture](https://github.com/Yeganehfrh/B2BNet/assets/36996819/5349f910-5a66-4d3f-b2ac-7668a56f68fa)
