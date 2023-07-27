@@ -5,6 +5,7 @@ import xarray as xr
 import torch.utils.data as data  # noqa
 from pathlib import Path
 from sklearn.model_selection import train_test_split
+from scipy.signal import butter, sosfiltfilt
 
 
 class OtkaDataModule(pl.LightningDataModule):
@@ -84,12 +85,14 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  data_dir: Path = Path('data/'),
                  train_ratio: float = 0.7,
                  segment_size: int = 128,
-                 batch_size: int = 32):
+                 batch_size: int = 32,
+                 filter: bool = False):
         super().__init__()
         self.data_dir = data_dir
         self.train_ratio = train_ratio
         self.segment_size = segment_size
         self.batch_size = batch_size
+        self.filter = filter
 
     def prepare_data(self):
         # read data from file
@@ -97,12 +100,17 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         # y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
 
-        # TODO: remove and modify the following three lines
+        # TODO: remove and modify the following three lines (using one of the subjects data as y_b2b)
         y_b2b = X_input[0, :, :].repeat(X_input.shape[0]-1, 1, 1)
         X_input = X_input[1:, :, :]
         y_class = torch.from_numpy(ds['y_class'].values)[1:]
- 
+
         ds.close()
+
+        if filter:
+            sos = butter(4, [30, 50], 'bp', fs=128, output='sos')
+            X_input = torch.from_numpy(sosfiltfilt(sos, X_input, axis=1).copy()).float()
+            y_b2b = torch.from_numpy(sosfiltfilt(sos, y_b2b, axis=1).copy()).float()
 
         # segment
         X_input = X_input.unfold(1, self.segment_size, self.segment_size).permute(0, 1, 3, 2)
