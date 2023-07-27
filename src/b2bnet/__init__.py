@@ -1,7 +1,8 @@
 from .models.b2bnet_model import B2BNetModel
 from .models.tcn import TCN
 from .data.random_data import RandomDataModule
-from .data.otka_data import OtkaDataModule, OtkaTimeDimSplit
+from .data.otka_data import OtkaDataModule
+from .data.otka_data_time import OtkaTimeDimSplit
 from .models.b2bnet_spacetime_model import B2BNetSpaceTimeModel
 
 __all__ = [
