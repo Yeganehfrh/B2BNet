@@ -49,10 +49,6 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # repeat y_class to match segmentation
         y_class = y_class.reshape(-1, 1, 1).repeat(1, X_input.shape[1], 1)
 
-        # normalize
-        X_input = F.normalize(X_input, dim=2)
-        y_b2b = F.normalize(y_b2b, dim=2)
-
         # cleanups
         # truncate y_b2b to match X_input
         # y_b2b = y_b2b[:, :X_input.shape[1], :]
@@ -63,24 +59,26 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # cut point for train/test split
         cut_point = int(X_input.shape[1] * self.train_ratio)
 
-        self.train_dataset = torch.utils.data.TensorDataset(X_input[:, :cut_point, :, :].flatten(0, 1),
-                                                            subject_ids[:, :cut_point, :].flatten(0, 1),
-                                                            y_b2b[:, :cut_point, :, :].flatten(0, 1),
-                                                            y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1))
+        self.train_dataset = torch.utils.data.TensorDataset(
+            F.normalize(X_input[:, :cut_point, :, :], dim=2).flatten(0, 1),
+            subject_ids[:, :cut_point, :].flatten(0, 1),
+            F.normalize(y_b2b[:, :cut_point, :, :], dim=2).flatten(0, 1),
+            y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1)
+            )
 
-        self.val_dataset = torch.utils.data.TensorDataset(X_input[:, cut_point:, :, :].flatten(0, 1),
-                                                          subject_ids[:, cut_point:, :].flatten(0, 1),
-                                                          y_b2b[:, cut_point:, :, :].flatten(0, 1),
-                                                          y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1))
+        self.val_dataset = torch.utils.data.TensorDataset(
+            F.normalize(X_input[:, cut_point:, :, :], dim=2).flatten(0, 1),
+            subject_ids[:, cut_point:, :].flatten(0, 1),
+            F.normalize(y_b2b[:, cut_point:, :, :], dim=2).flatten(0, 1),
+            y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1)
+            )
 
     def train_dataloader(self):
         rnd_g = torch.Generator()
-        rnd_g.manual_seed(42)
-
+        rnd_g.manual_seed(42)   # TODO: remove manual seed
         return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size, generator=rnd_g)
 
     def val_dataloader(self):
         rnd_g = torch.Generator()
-        rnd_g.manual_seed(42)
-
+        rnd_g.manual_seed(42)  # TODO: remove manual seed
         return torch.utils.data.DataLoader(self.val_dataset, batch_size=self.batch_size, generator=rnd_g)
