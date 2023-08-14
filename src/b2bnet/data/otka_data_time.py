@@ -5,7 +5,7 @@ import xarray as xr
 from torch.utils.data import DataLoader
 from pathlib import Path
 from scipy.signal import butter, sosfiltfilt
-from .utils import padding
+from ..utils.timeseries_utils import padding, lag
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -19,7 +19,8 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  batch_size: int = 32,
                  filter: bool = False,
                  subject_in_b2b: bool = False,
-                 zero_padding: bool = False,):
+                 data_mode: str = 'simple_reconstruction',
+                 ):
         super().__init__()
         self.data_dir = data_dir
         self.train_ratio = train_ratio
@@ -27,7 +28,9 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.batch_size = batch_size
         self.filter = filter
         self.subject_in_b2b = subject_in_b2b
-        self.zero_padding = zero_padding
+        self.data_mode = data_mode
+
+        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag']
 
     def prepare_data(self):
         # read data from file
@@ -68,50 +71,59 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         X_test = F.normalize(X_input[:, cut_point:, :, :], dim=2)
         y_b2b_train = F.normalize(y_b2b[:, :cut_point, :, :], dim=2)
         y_b2b_test = F.normalize(y_b2b[:, cut_point:, :, :], dim=2)
+        
+        if self.data_mode == 'simple_reconstruction':
+            X_train_out = X_train.flatten(0, 1)
+            X_train_in = X_train.flatten(0, 1)
+            X_test_in = X_test.flatten(0, 1)
+            X_test_out = X_test.flatten(0, 1)
+            y_b2b_train_in = y_b2b_train.flatten(0, 1)
+            y_b2b_train_out = y_b2b_train.flatten(0, 1)
+            y_b2b_test_in = y_b2b_test.flatten(0, 1)
+            y_b2b_test_out = y_b2b_test.flatten(0, 1)
 
-        X_train_trg = X_train.flatten(0, 1)
-        X_train_inp = X_train.flatten(0, 1)
-        X_test_inp = X_test.flatten(0, 1)
-        X_test_trg = X_test.flatten(0, 1)
-        y_b2b_train_inp = y_b2b_train.flatten(0, 1)
-        y_b2b_train_trg = y_b2b_train.flatten(0, 1)
-        y_b2b_test_inp = y_b2b_test.flatten(0, 1)
-        y_b2b_test_trg = y_b2b_test.flatten(0, 1)
-
-        if self.zero_padding:
+        if self.data_mode == 'padding':
             # zero padding proportional to the segment length (as a mask) & flatten
             padding_length = int(self.segment_size / 6)
             X_train = padding(X_train, pad_length=padding_length).flatten(0, 1)
-            X_train_inp = X_train[:, :-self.segment_size, :]
-            X_train_trg = X_train[:, self.segment_size:, :]
+            X_train_in = X_train[:, :-self.segment_size, :]
+            X_train_out = X_train[:, self.segment_size:, :]
 
             X_test = padding(X_test, pad_length=padding_length).flatten(0, 1)
-            X_test_inp = X_test[:, :-self.segment_size, :]
-            X_test_trg = X_test[:, self.segment_size:, :]
+            X_test_in = X_test[:, :-self.segment_size, :]
+            X_test_out = X_test[:, self.segment_size:, :]
 
             y_b2b_train = padding(y_b2b_train, pad_length=padding_length).flatten(0, 1)
-            y_b2b_train_inp = y_b2b_train[:, :-self.segment_size, :]
-            y_b2b_train_trg = y_b2b_train[:, self.segment_size:, :]
+            y_b2b_train_in = y_b2b_train[:, :-self.segment_size, :]
+            y_b2b_train_out = y_b2b_train[:, self.segment_size:, :]
 
             y_b2b_test = padding(y_b2b_test, pad_length=padding_length).flatten(0, 1)
-            y_b2b_test_inp = y_b2b_test[:, :-self.segment_size, :]
-            y_b2b_test_trg = y_b2b_test[:, self.segment_size:, :]
+            y_b2b_test_in = y_b2b_test[:, :-self.segment_size, :]
+            y_b2b_test_out = y_b2b_test[:, self.segment_size:, :]
+
+        if self.data_mode == 'lag':
+            # lagged reconstruction
+            overlap = int(self.segment_size / 6)
+            X_train_in, X_train_out = lag(X_train, overlap=overlap, flatten=True)
+            X_test_in, X_test_out = lag(X_test, overlap=overlap, flatten=True)
+            y_b2b_train_in, y_b2b_train_out = lag(y_b2b_train, overlap=overlap, flatten=True)
+            y_b2b_test_in, y_b2b_test_out = lag(y_b2b_test, overlap=overlap, flatten=True)
 
         self.train_dataset = torch.utils.data.TensorDataset(
-            X_train_inp,
-            X_train_trg,
+            X_train_in,
+            X_train_out,
             subject_ids[:, :cut_point, :].flatten(0, 1),
-            y_b2b_train_inp,
-            y_b2b_train_trg,
+            y_b2b_train_in,
+            y_b2b_train_out,
             y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1)
             )
 
         self.val_dataset = torch.utils.data.TensorDataset(
-            X_test_inp,
-            X_test_trg,
+            X_test_in,
+            X_test_out,
             subject_ids[:, cut_point:, :].flatten(0, 1),
-            y_b2b_test_inp,
-            y_b2b_test_trg,
+            y_b2b_test_in,
+            y_b2b_test_out,
             y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1)
             )
 
