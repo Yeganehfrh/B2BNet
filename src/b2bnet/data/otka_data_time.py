@@ -2,9 +2,10 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import xarray as xr
-import torch.utils.data as data  # noqa
+from torch.utils.data import DataLoader
 from pathlib import Path
 from scipy.signal import butter, sosfiltfilt
+from .utils import padding
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -16,24 +17,29 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  train_ratio: float = 0.7,
                  segment_size: int = 128,
                  batch_size: int = 32,
-                 filter: bool = False):
+                 filter: bool = False,
+                 subject_in_b2b: bool = False,
+                 zero_padding: bool = False,):
         super().__init__()
         self.data_dir = data_dir
         self.train_ratio = train_ratio
         self.segment_size = segment_size
         self.batch_size = batch_size
         self.filter = filter
+        self.subject_in_b2b = subject_in_b2b
+        self.zero_padding = zero_padding
 
     def prepare_data(self):
         # read data from file
         ds = xr.open_dataset(self.data_dir / 'otka.nc5')
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
-        # y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
+        y_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
+        y_class = torch.from_numpy(ds['y_class'].values)
 
-        # TODO: remove and modify the following three lines (using one of the subjects data as y_b2b)
-        y_b2b = X_input[0, :, :].repeat(X_input.shape[0]-1, 1, 1)
-        X_input = X_input[1:, :, :]
-        y_class = torch.from_numpy(ds['y_class'].values)[1:]
+        if self.subject_in_b2b:
+            y_b2b = X_input[0, :, :].repeat(X_input.shape[0]-1, 1, 1)
+            X_input = X_input[1:, :, :]
+            y_class = torch.from_numpy(ds['y_class'].values)[1:]
 
         ds.close()
 
@@ -49,36 +55,76 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # repeat y_class to match segmentation
         y_class = y_class.reshape(-1, 1, 1).repeat(1, X_input.shape[1], 1)
 
-        # cleanups
         # truncate y_b2b to match X_input
-        # y_b2b = y_b2b[:, :X_input.shape[1], :]
+        y_b2b = y_b2b[:, :X_input.shape[1], :]
 
         # create subject ids
         subject_ids = torch.arange(0, X_input.shape[0]).reshape(-1, 1, 1).repeat(1, X_input.shape[1], 1)
 
-        # cut point for train/test split
-        cut_point = int(X_input.shape[1] * self.train_ratio)
+        # train/test split & normalization
+        cut_point = int(X_input.shape[1] * self.train_ratio)  # cut point for train/test split
+        X_train = F.normalize(X_input[:, :cut_point, :, :], dim=2)  # TODO: should we normalize after
+        # flatening? or instead normalize on dimension 1?
+        X_test = F.normalize(X_input[:, cut_point:, :, :], dim=2)
+        y_b2b_train = F.normalize(y_b2b[:, :cut_point, :, :], dim=2)
+        y_b2b_test = F.normalize(y_b2b[:, cut_point:, :, :], dim=2)
+
+        X_train_trg = X_train.flatten(0, 1)
+        X_train_inp = X_train.flatten(0, 1)
+        X_test_inp = X_test.flatten(0, 1)
+        X_test_trg = X_test.flatten(0, 1)
+        y_b2b_train_inp = y_b2b_train.flatten(0, 1)
+        y_b2b_train_trg = y_b2b_train.flatten(0, 1)
+        y_b2b_test_inp = y_b2b_test.flatten(0, 1)
+        y_b2b_test_trg = y_b2b_test.flatten(0, 1)
+
+        if self.zero_padding:
+            # zero padding proportional to the segment length (as a mask) & flatten
+            padding_length = int(self.segment_size / 6)
+            X_train = padding(X_train, pad_length=padding_length).flatten(0, 1)
+            X_train_inp = X_train[:, :-self.segment_size, :]
+            X_train_trg = X_train[:, self.segment_size:, :]
+
+            X_test = padding(X_test, pad_length=padding_length).flatten(0, 1)
+            X_test_inp = X_test[:, :-self.segment_size, :]
+            X_test_trg = X_test[:, self.segment_size:, :]
+
+            y_b2b_train = padding(y_b2b_train, pad_length=padding_length).flatten(0, 1)
+            y_b2b_train_inp = y_b2b_train[:, :-self.segment_size, :]
+            y_b2b_train_trg = y_b2b_train[:, self.segment_size:, :]
+
+            y_b2b_test = padding(y_b2b_test, pad_length=padding_length).flatten(0, 1)
+            y_b2b_test_inp = y_b2b_test[:, :-self.segment_size, :]
+            y_b2b_test_trg = y_b2b_test[:, self.segment_size:, :]
 
         self.train_dataset = torch.utils.data.TensorDataset(
-            F.normalize(X_input[:, :cut_point, :, :], dim=2).flatten(0, 1),
+            X_train_inp,
+            X_train_trg,
             subject_ids[:, :cut_point, :].flatten(0, 1),
-            F.normalize(y_b2b[:, :cut_point, :, :], dim=2).flatten(0, 1),
+            y_b2b_train_inp,
+            y_b2b_train_trg,
             y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1)
             )
 
         self.val_dataset = torch.utils.data.TensorDataset(
-            F.normalize(X_input[:, cut_point:, :, :], dim=2).flatten(0, 1),
+            X_test_inp,
+            X_test_trg,
             subject_ids[:, cut_point:, :].flatten(0, 1),
-            F.normalize(y_b2b[:, cut_point:, :, :], dim=2).flatten(0, 1),
+            y_b2b_test_inp,
+            y_b2b_test_trg,
             y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1)
             )
 
     def train_dataloader(self):
         rnd_g = torch.Generator()
         rnd_g.manual_seed(42)   # TODO: remove manual seed
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.batch_size, generator=rnd_g)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, generator=rnd_g)
 
     def val_dataloader(self):
         rnd_g = torch.Generator()
         rnd_g.manual_seed(42)  # TODO: remove manual seed
-        return torch.utils.data.DataLoader(self.val_dataset, batch_size=self.batch_size, generator=rnd_g)
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, generator=rnd_g)
+
+    def teardown(self, stage: str):
+        # Used to clean-up when the run is finished
+        ...
