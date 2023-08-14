@@ -26,11 +26,11 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         return y_cls, x_reconn
 
     def training_step(self, batch, batch_idx):
-        x, subject_ids, y_b2b, y_cls = batch
+        x, x_trg, subject_ids, y_b2b, y_b2b_trg, y_cls = batch
         y_cls_hat, x_reconn = self(x)
 
         # loss
-        loss_reconn = nn.functional.mse_loss(x_reconn, x)
+        loss_reconn = nn.functional.mse_loss(x_reconn, x_trg)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
 
         # total loss
@@ -45,11 +45,11 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, subject_ids, y_b2b, y_cls = batch
+        x, x_trg, subject_ids, y_b2b, y_b2b_trg, y_cls = batch
         y_cls_hat, x_reconn = self(x)
 
         # loss
-        loss_reconn = nn.functional.mse_loss(x_reconn, x)
+        loss_reconn = nn.functional.mse_loss(x_reconn, x_trg)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
 
         # total loss

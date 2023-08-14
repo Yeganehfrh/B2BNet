@@ -9,8 +9,11 @@ class SpaceTimeAutoEncoder(nn.Module):
         super().__init__()
 
         # spatial encoder
-        self.space_encoder = nn.Conv1d(n_channels, n_features, kernel_size)
-        # self.flatten = nn.Flatten(start_dim=1)  # flatten the output over the channel dimension
+        self.space_encoder = nn.Sequential(nn.Conv1d(n_channels, n_features, kernel_size),
+                                           nn.ReLU(),
+                                        # nn.Conv1d(n_features, 16, kernel_size),  # TODO: change 16 to a variable
+                                        # nn.ReLU()
+                                        )
 
         # temporal auto-encoder
         self.time_encoder = nn.LSTM(n_features,
@@ -21,8 +24,10 @@ class SpaceTimeAutoEncoder(nn.Module):
                                     batch_first=True)
 
         # spatial decoder
-        # self.unflatten = nn.Unflatten(1, (features_out, -1))
-        self.space_decoder = nn.ConvTranspose1d(n_features, n_channels, kernel_size)
+        self.space_decoder = nn.Sequential(nn.ConvTranspose1d(n_features, n_channels, 1, stride=1),
+                                           nn.ReLU(),
+                                        #  nn.ConvTranspose1d(n_features, n_channels, 1, stride=1)
+                                           )
 
     def forward(self, x):
         # spatial encoding
