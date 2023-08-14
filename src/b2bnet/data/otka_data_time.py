@@ -5,7 +5,7 @@ import xarray as xr
 from torch.utils.data import DataLoader
 from pathlib import Path
 from scipy.signal import butter, sosfiltfilt
-from ..utils.timeseries_utils import padding, lag, maskByOnes
+from ..utils.timeseries_utils import padding, lag, mask, crop
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -30,7 +30,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.subject_in_b2b = subject_in_b2b
         self.data_mode = data_mode
 
-        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag', 'mask']
+        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag', 'mask', 'crop']
 
     def prepare_data(self):
         # read data from file
@@ -71,7 +71,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         X_test = F.normalize(X_input[:, cut_point:, :, :], dim=2)
         y_b2b_train = F.normalize(y_b2b[:, :cut_point, :, :], dim=2)
         y_b2b_test = F.normalize(y_b2b[:, cut_point:, :, :], dim=2)
-        
+
         if self.data_mode == 'simple_reconstruction':
             X_train_out = X_train.flatten(0, 1)
             X_train_in = X_train.flatten(0, 1)
@@ -111,14 +111,24 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
 
         if self.data_mode == 'mask':
             mask_length = int(self.segment_size / 6)
-            X_train_in = maskByOnes(X_train, mask_length=mask_length, flatten=True)
+            X_train_in = mask(X_train, mask_length=mask_length, flatten=True)
             X_train_out = X_train.flatten(0, 1)
-            X_test_in = maskByOnes(X_test, mask_length=mask_length, flatten=True)
+            X_test_in = mask(X_test, mask_length=mask_length, flatten=True)
             X_test_out = X_test.flatten(0, 1)
-            y_b2b_train_in = maskByOnes(y_b2b_train, mask_length=mask_length, flatten=True)
+            y_b2b_train_in = mask(y_b2b_train, mask_length=mask_length, flatten=True)
             y_b2b_train_out = y_b2b_train.flatten(0, 1)
-            y_b2b_test_in = maskByOnes(y_b2b_test, mask_length=mask_length, flatten=True)
+            y_b2b_test_in = mask(y_b2b_test, mask_length=mask_length, flatten=True)
             y_b2b_test_out = y_b2b_test.flatten(0, 1)
+
+        if self.data_mode == 'crop':
+            X_train_in = crop(X_train, crop_length=1, flatten=True)
+            X_train_out = X_train[:, :, -1, :].flatten(0, 1)
+            X_test_in = crop(X_test, crop_length=1, flatten=True)
+            X_test_out = X_test[:, :, -1, :].flatten(0, 1)
+            y_b2b_train_in = crop(y_b2b_train, crop_length=1, flatten=True)
+            y_b2b_train_out = y_b2b_train[:, :, -1, :].flatten(0, 1)
+            y_b2b_test_in = crop(y_b2b_test, crop_length=1, flatten=True)
+            y_b2b_test_out = y_b2b_test[:, :, -1, :].flatten(0, 1)
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,
