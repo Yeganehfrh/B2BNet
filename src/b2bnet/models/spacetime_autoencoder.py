@@ -11,23 +11,22 @@ class SpaceTimeAutoEncoder(nn.Module):
         # spatial encoder
         self.space_encoder = nn.Sequential(nn.Conv1d(n_channels, n_features, kernel_size),
                                            nn.ReLU(),
-                                        # nn.Conv1d(n_features, 16, kernel_size),  # TODO: change 16 to a variable
-                                        # nn.ReLU()
-                                        )
+                                           nn.Conv1d(n_features, 16, kernel_size),  # TODO: change 16 to a variable
+                                           nn.ReLU())
 
         # temporal auto-encoder
-        self.time_encoder = nn.LSTM(n_features,
+        self.time_encoder = nn.LSTM(16,
                                     hidden_size,
                                     batch_first=True)
         self.time_decoder = nn.LSTM(hidden_size,
-                                    n_features,
+                                    16,
                                     batch_first=True)
 
         # spatial decoder
-        self.space_decoder = nn.Sequential(nn.ConvTranspose1d(n_features, n_channels, 1, stride=1),
+        self.space_decoder = nn.Sequential(nn.ConvTranspose1d(16, n_features, 1, stride=1),
                                            nn.ReLU(),
-                                        #  nn.ConvTranspose1d(n_features, n_channels, 1, stride=1)
-                                           )
+                                           nn.ConvTranspose1d(n_features, n_channels, 1, stride=1),
+                                           nn.ReLU())
 
     def forward(self, x):
         # spatial encoding

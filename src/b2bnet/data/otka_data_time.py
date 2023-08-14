@@ -5,7 +5,7 @@ import xarray as xr
 from torch.utils.data import DataLoader
 from pathlib import Path
 from scipy.signal import butter, sosfiltfilt
-from ..utils.timeseries_utils import padding, lag
+from ..utils.timeseries_utils import padding, lag, maskByOnes
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -30,7 +30,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.subject_in_b2b = subject_in_b2b
         self.data_mode = data_mode
 
-        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag']
+        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag', 'mask']
 
     def prepare_data(self):
         # read data from file
@@ -108,6 +108,17 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             X_test_in, X_test_out = lag(X_test, overlap=overlap, flatten=True)
             y_b2b_train_in, y_b2b_train_out = lag(y_b2b_train, overlap=overlap, flatten=True)
             y_b2b_test_in, y_b2b_test_out = lag(y_b2b_test, overlap=overlap, flatten=True)
+
+        if self.data_mode == 'mask':
+            mask_length = int(self.segment_size / 6)
+            X_train_in = maskByOnes(X_train, mask_length=mask_length, flatten=True)
+            X_train_out = X_train.flatten(0, 1)
+            X_test_in = maskByOnes(X_test, mask_length=mask_length, flatten=True)
+            X_test_out = X_test.flatten(0, 1)
+            y_b2b_train_in = maskByOnes(y_b2b_train, mask_length=mask_length, flatten=True)
+            y_b2b_train_out = y_b2b_train.flatten(0, 1)
+            y_b2b_test_in = maskByOnes(y_b2b_test, mask_length=mask_length, flatten=True)
+            y_b2b_test_out = y_b2b_test.flatten(0, 1)
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,

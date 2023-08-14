@@ -15,3 +15,9 @@ def lag(x, overlap=64, flatten=True):
         return x[:, :, :mid_point+overlap, :].flatten(0, 1), x[:, :, mid_point-overlap:, :].flatten(0, 1)
     else:
         return x[:, :, :mid_point+overlap, :], x[:, :, mid_point-overlap:, :]
+
+
+def maskByOnes(x, mask_length=64, flatten=True):
+    # in practice we have just covered the last 64 time steps of the input, output remains the same
+    x[:, :, -mask_length:, :] = 1
+    return x.flatten(0, 1) if flatten else x
