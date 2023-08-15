@@ -50,7 +50,7 @@ def mask(x, mask_length=1, value=1, flatten=True):
 
 
 def crop(x, crop_length=1, flatten=True):
-    x = x[:, :, -crop_length:, :]
+    x = x[:, :, :-crop_length, :]
 
     if flatten:
         return x.flatten(0, 1)

@@ -2,20 +2,23 @@ import pytorch_lightning as pl
 import torch  # noqa
 from torch import nn
 from .spacetime_autoencoder import SpaceTimeAutoEncoder
+import torchmetrics.functional as tmf
 
 
 class B2BNetSpaceTimeModel(pl.LightningModule):
     def __init__(self,
-                 n_channels, n_features, hidden_size,
+                 n_channels, space_embedding_dim, time_embedding_dim,
                  n_subjects, kernel_size=1):
         super().__init__()
 
         self.n_subjects = n_subjects
 
-        self.autoencoder = SpaceTimeAutoEncoder(n_channels, n_features, hidden_size, kernel_size=kernel_size)
+        self.autoencoder = SpaceTimeAutoEncoder(
+            n_channels, space_embedding_dim, time_embedding_dim,
+            kernel_size=kernel_size)
 
         # classifier head
-        self.cls = nn.Linear(hidden_size, 2)
+        self.cls = nn.Linear(time_embedding_dim, 2)
 
     def forward(self, x):
 
@@ -26,39 +29,43 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         return y_cls, x_reconn
 
     def training_step(self, batch, batch_idx):
-        x_in, x_out, subject_ids, y_b2b_in, y_b2b_out, y_cls = batch
-        y_cls_hat, x_reconn = self(x_in)
+        x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
+        y_cls_hat, y_hat = self(x)
 
         # loss
-        loss_reconn = nn.functional.mse_loss(x_reconn[:, -1, :], x_out)
+        loss_reconn = nn.functional.mse_loss(y_hat[:, -1, :], y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
 
         # total loss
         loss = loss_cls + loss_reconn
+        accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        # DEBUG: accuracy = (y_cls_hat.argmax(dim=1) == y_cls).float().mean()
 
         # logging
         self.log('train/loss_reconn', loss_reconn)
         self.log('train/loss_cls', loss_cls)
-        self.log('train/accuracy', (y_cls_hat.argmax(dim=1) == y_cls).float().mean())
+        self.log('train/accuracy', accuracy)
         self.log('train/loss', loss)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x_in, x_out, subject_ids, y_b2b_in, y_b2b_out, y_cls = batch
-        y_cls_hat, x_reconn = self(x_in)
+        x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
+        y_cls_hat, y_hat = self(x)
 
         # loss
-        loss_reconn = nn.functional.mse_loss(x_reconn[:, -1, :], x_out)
+        loss_reconn = nn.functional.mse_loss(y_hat[:, -1, :], y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
 
         # total loss
         loss = loss_cls + loss_reconn
+        accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        # DEBUG: accuracy = (y_cls_hat.argmax(dim=1) == y_cls).float().mean()
 
         # logging
         self.log('val/loss_reconn', loss_reconn)
         self.log('val/loss_cls', loss_cls)
-        self.log('val/accuracy', (y_cls_hat.argmax(dim=1) == y_cls).float().mean())
+        self.log('val/accuracy', accuracy)
         self.log('val/loss', loss)
 
         return loss
