@@ -1,4 +1,4 @@
-from .models.b2bnet_model import B2BNetModel
+from .models.old.b2bnet_model import B2BNetModel
 from .models.tcn import TCN
 from .data.random_data import RandomDataModule
 from .data.otka_subject_split import OtkaDataModule
