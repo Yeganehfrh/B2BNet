@@ -6,7 +6,7 @@ channels:
   - default
 
 dependencies:
-  - python=3.10
+  - python
   - pip
   - pytorch
   - pytorch-lightning
@@ -24,5 +24,4 @@ dependencies:
   - dvc
   - dvc-gdrive
   - scikit-learn
-  - pip:
-    - ray[tune]
+  - ray-tune

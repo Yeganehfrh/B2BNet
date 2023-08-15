@@ -4,3 +4,24 @@ This embedded representation is then utilized for two downstream heads: one head
 
 
 ![DL_architecture](https://github.com/Yeganehfrh/B2BNet/assets/36996819/5349f910-5a66-4d3f-b2ac-7668a56f68fa)
+
+
+## Setup
+
+To install the requirements:
+
+```bash
+mamba env create -f environment.yml
+mamba activate b2bnet
+```
+
+And then to download the data, models, and results from DVC remote storage:
+
+```bash
+dvc pull
+```
+
+
+## License
+
+This project is licensed under the terms of the CC-BY-4.0 license. See [LICENSE](LICENSE) for additional details.
