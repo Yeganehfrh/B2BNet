@@ -21,7 +21,7 @@ dependencies:
   - xarray
   - h5netcdf
   - tensorboard
-  - dvc
+  - dvc>3
   - dvc-gdrive
   - scikit-learn
   # - ray-tune
