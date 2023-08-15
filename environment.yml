@@ -24,4 +24,4 @@ dependencies:
   - dvc
   - dvc-gdrive
   - scikit-learn
-  - ray-tune
+  # - ray-tune
