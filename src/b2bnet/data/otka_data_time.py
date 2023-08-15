@@ -5,7 +5,7 @@ import xarray as xr
 from torch.utils.data import DataLoader
 from pathlib import Path
 from scipy.signal import butter, sosfiltfilt
-from ..utils.timeseries_utils import padding, lag, mask, crop
+from ..utils.timeseries import pad, lag, mask, crop
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -30,7 +30,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.subject_in_b2b = subject_in_b2b
         self.data_mode = data_mode
 
-        assert self.data_mode in ['simple_reconstruction', 'padding', 'lag', 'mask', 'crop']
+        assert self.data_mode in ['simple_reconstruction', 'pad', 'lag', 'mask', 'crop']
 
     def prepare_data(self):
         # read data from file
@@ -40,7 +40,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         y_class = torch.from_numpy(ds['y_class'].values)
 
         if self.subject_in_b2b:
-            y_b2b = X_input[0, :, :].repeat(X_input.shape[0]-1, 1, 1)
+            y_b2b = X_input[0, :, :].repeat(X_input.shape[0] - 1, 1, 1)
             X_input = X_input[1:, :, :]
             y_class = torch.from_numpy(ds['y_class'].values)[1:]
 
@@ -82,22 +82,22 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             y_b2b_test_in = y_b2b_test.flatten(0, 1)
             y_b2b_test_out = y_b2b_test.flatten(0, 1)
 
-        if self.data_mode == 'padding':
+        if self.data_mode == 'pad':
             # zero padding proportional to the segment length (as a mask) & flatten
             padding_length = int(self.segment_size / 6)
-            X_train = padding(X_train, pad_length=padding_length).flatten(0, 1)
+            X_train = pad(X_train, pad_length=padding_length).flatten(0, 1)
             X_train_in = X_train[:, :-self.segment_size, :]
             X_train_out = X_train[:, self.segment_size:, :]
 
-            X_test = padding(X_test, pad_length=padding_length).flatten(0, 1)
+            X_test = pad(X_test, pad_length=padding_length).flatten(0, 1)
             X_test_in = X_test[:, :-self.segment_size, :]
             X_test_out = X_test[:, self.segment_size:, :]
 
-            y_b2b_train = padding(y_b2b_train, pad_length=padding_length).flatten(0, 1)
+            y_b2b_train = pad(y_b2b_train, pad_length=padding_length).flatten(0, 1)
             y_b2b_train_in = y_b2b_train[:, :-self.segment_size, :]
             y_b2b_train_out = y_b2b_train[:, self.segment_size:, :]
 
-            y_b2b_test = padding(y_b2b_test, pad_length=padding_length).flatten(0, 1)
+            y_b2b_test = pad(y_b2b_test, pad_length=padding_length).flatten(0, 1)
             y_b2b_test_in = y_b2b_test[:, :-self.segment_size, :]
             y_b2b_test_out = y_b2b_test[:, self.segment_size:, :]
 
@@ -137,7 +137,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             y_b2b_train_in,
             y_b2b_train_out,
             y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1)
-            )
+        )
 
         self.val_dataset = torch.utils.data.TensorDataset(
             X_test_in,
@@ -146,7 +146,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             y_b2b_test_in,
             y_b2b_test_out,
             y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1)
-            )
+        )
 
     def train_dataloader(self):
         rnd_g = torch.Generator()
