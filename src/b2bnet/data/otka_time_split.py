@@ -125,16 +125,16 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             X_train_out = X_train[:, :, -1, :].flatten(0, 1)
             X_test_in = crop(X_test, crop_length=1, flatten=True)
             X_test_out = X_test[:, :, -1, :].flatten(0, 1)
-            y_b2b_train_in = crop(y_b2b_train, crop_length=1, flatten=True)
+            # y_b2b_train_in = crop(y_b2b_train, crop_length=1, flatten=True)
             y_b2b_train_out = y_b2b_train[:, :, -1, :].flatten(0, 1)
-            y_b2b_test_in = crop(y_b2b_test, crop_length=1, flatten=True)
+            # y_b2b_test_in = crop(y_b2b_test, crop_length=1, flatten=True)
             y_b2b_test_out = y_b2b_test[:, :, -1, :].flatten(0, 1)
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,
             X_train_out,
             subject_ids[:, :cut_point, :].flatten(0, 1),
-            y_b2b_train_in,
+            # y_b2b_train_in,
             y_b2b_train_out,
             y_class[:, :cut_point, :].flatten(0, 1).squeeze(dim=1)
         )
@@ -143,7 +143,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
             X_test_in,
             X_test_out,
             subject_ids[:, cut_point:, :].flatten(0, 1),
-            y_b2b_test_in,
+            # y_b2b_test_in,
             y_b2b_test_out,
             y_class[:, cut_point:, :].flatten(0, 1).squeeze(dim=1)
         )

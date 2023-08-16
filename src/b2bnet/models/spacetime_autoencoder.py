@@ -1,4 +1,4 @@
-import torch
+import torch  # noqa
 import pytorch_lightning as pl # noqa
 from torch import nn
 import torch.nn.functional as F  # noqa
@@ -43,7 +43,6 @@ class SpaceTimeAutoEncoder(nn.Module):
 
     def forward(self, x):
 
-        batch_size = x.shape[0]
         n_timesteps = x.shape[1]
 
         # spatial encoding
@@ -51,7 +50,7 @@ class SpaceTimeAutoEncoder(nn.Module):
 
         # temporal encoding
         y_time_enc, (h_enc, c_enc) = self.time_encoder(y_space_enc.permute(0, 2, 1))
-        embedding = h_enc[-1, :, :]
+        # embedding = h_enc[-1, :, :]
         h_enc = h_enc.permute(1, 0, 2).repeat(1, n_timesteps, 1)
         y_time_dec, (_, _) = self.time_decoder(h_enc)
 
@@ -60,4 +59,4 @@ class SpaceTimeAutoEncoder(nn.Module):
 
         y_dec = x_space_dec.permute(0, 2, 1)
 
-        return embedding, y_dec
+        return h_enc, y_dec
