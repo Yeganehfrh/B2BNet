@@ -9,10 +9,11 @@ from .b2b_head import B2BHead
 class B2BNetSpaceTimeModel(pl.LightningModule):
     def __init__(self,
                  n_channels, space_embedding_dim, time_embedding_dim,
-                 n_subjects, kernel_size=1, b2b_head=True):
+                 n_subjects, kernel_size=1, b2b=False):
         super().__init__()
 
         self.n_subjects = n_subjects
+        self.b2b = b2b
 
         self.autoencoder = SpaceTimeAutoEncoder(
             n_channels, space_embedding_dim, time_embedding_dim,
@@ -21,7 +22,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         # classifier head
         self.cls = nn.Linear(time_embedding_dim, 2)
 
-        if b2b_head:
+        if b2b:
             self.b2b_head = B2BHead(time_embedding_dim, space_embedding_dim, n_channels)
 
     def forward(self, x):
@@ -30,7 +31,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         embedding, y_hat = self.autoencoder(x)
         y_cls = self.cls(embedding[-1, :, :])
 
-        if self.b2b_head:
+        if self.b2b:
             y_b2b_hat = self.b2b_head(embedding, n_timesteps=x.shape[1])
             return y_cls, y_hat[:, -1, :], y_b2b_hat[:, -1, :]
 
@@ -46,7 +47,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
         loss = loss_cls + loss_reconn
 
-        if self.b2b_head:
+        if self.b2b:
             loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
             loss = loss + loss_b2b
             self.log('train/loss_b2b', loss_b2b)
@@ -71,7 +72,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
         loss = loss_cls + loss_reconn
 
-        if self.b2b_head:
+        if self.b2b:
             loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
             loss = loss + loss_b2b
             self.log('train/loss_b2b', loss_b2b)
