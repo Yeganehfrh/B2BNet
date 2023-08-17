@@ -3,12 +3,13 @@ import torch  # noqa
 from torch import nn
 from .spacetime_autoencoder import SpaceTimeAutoEncoder
 import torchmetrics.functional as tmf
+from .b2b_head import B2BHead
 
 
 class B2BNetSpaceTimeModel(pl.LightningModule):
     def __init__(self,
                  n_channels, space_embedding_dim, time_embedding_dim,
-                 n_subjects, kernel_size=1):
+                 n_subjects, kernel_size=1, b2b_head=True):
         super().__init__()
 
         self.n_subjects = n_subjects
@@ -20,37 +21,21 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         # classifier head
         self.cls = nn.Linear(time_embedding_dim, 2)
 
-        # b2b head
-        self.b2b_time_decoder = nn.LSTM(time_embedding_dim,
-                                        space_embedding_dim,
-                                        batch_first=True)
-        self.b2b_space_decoder = nn.Sequential(
-            nn.ConvTranspose1d(space_embedding_dim,
-                               n_channels,
-                               1,
-                               stride=1),
-            # nn.ReLU(),
-            # nn.ConvTranspose1d(space_embedding_dim * 2,
-            #                    n_channels,
-            #                    1,
-            #                    stride=1),
-            nn.ReLU())
+        if b2b_head:
+            self.b2b_head = B2BHead(time_embedding_dim, space_embedding_dim, n_channels)
 
     def forward(self, x):
-
-        n_timesteps = x.shape[1]
 
         # autoencoder
         embedding, y_hat = self.autoencoder(x)
         y_cls = self.cls(embedding[-1, :, :])
 
-        # b2b head
-        h_enc = embedding.permute(1, 0, 2).repeat(1, n_timesteps, 1)
-        y_b2b_hat, (_, _) = self.b2b_time_decoder(h_enc)
-        x_space_dec = self.b2b_space_decoder(y_b2b_hat.permute(0, 2, 1))
-        y_b2b_hat = x_space_dec.permute(0, 2, 1)
+        if self.b2b_head:
+            y_b2b_hat = self.b2b_head(embedding, n_timesteps=x.shape[1])
+            return y_cls, y_hat[:, -1, :], y_b2b_hat[:, -1, :]
 
-        return y_cls, y_hat[:, -1, :], y_b2b_hat[:, -1, :]
+        else:
+            return y_cls, y_hat[:, -1, :], None
 
     def training_step(self, batch, batch_idx):
         x, y, subject_ids, y_b2b, y_cls = batch
@@ -59,10 +44,13 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         # loss
         loss_reconn = nn.functional.mse_loss(y_hat, y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
-        loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+        loss = loss_cls + loss_reconn
 
-        # total loss
-        loss = loss_cls + loss_reconn + loss_b2b
+        if self.b2b_head:
+            loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+            loss = loss + loss_b2b
+            self.log('train/loss_b2b', loss_b2b)
+
         accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
         # DEBUG: accuracy = (y_cls_hat.argmax(dim=1) == y_cls).float().mean()
 
@@ -71,7 +59,6 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         self.log('train/loss_cls', loss_cls)
         self.log('train/accuracy', accuracy)
         self.log('train/loss', loss)
-        self.log('train/loss_b2b', loss_b2b)
 
         return loss
 
@@ -82,10 +69,13 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         # loss
         loss_reconn = nn.functional.mse_loss(y_hat, y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
-        loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+        loss = loss_cls + loss_reconn
 
-        # total loss
-        loss = loss_cls + loss_reconn + loss_b2b
+        if self.b2b_head:
+            loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+            loss = loss + loss_b2b
+            self.log('train/loss_b2b', loss_b2b)
+
         accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
         # DEBUG: accuracy = (y_cls_hat.argmax(dim=1) == y_cls).float().mean()
 
@@ -94,7 +84,6 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         self.log('val/loss_cls', loss_cls)
         self.log('val/accuracy', accuracy)
         self.log('val/loss', loss)
-        self.log('val/loss_b2b', loss_b2b)
 
         return loss
 
