@@ -13,7 +13,7 @@ class B2BHead(pl.LightningModule):
                                         space_embedding_dim,
                                         batch_first=True)
         self.b2b_space_decoder = nn.Sequential(nn.ConvTranspose1d(space_embedding_dim,
-                                                                  n_channels,
+                                                                  space_embedding_dim * 2,
                                                                   1,
                                                                   stride=1),
                                                nn.ReLU(),
