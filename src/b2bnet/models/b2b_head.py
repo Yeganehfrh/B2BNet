@@ -1,11 +1,11 @@
-from torch import nn  # noqa
+from torch import nn
 import pytorch_lightning as pl
 
 
 class B2BHead(pl.LightningModule):
     """B2B head for the B2BNet model"""
 
-    def __init__(self, time_embedding_dim: int, space_embedding_dim: int, n_channels: int):
+    def __init__(self, n_channels: int, time_embedding_dim: int, space_embedding_dim: int):
         super().__init__()
 
         # b2b head
@@ -14,12 +14,12 @@ class B2BHead(pl.LightningModule):
                                         batch_first=True)
         self.b2b_space_decoder = nn.Sequential(nn.ConvTranspose1d(space_embedding_dim,
                                                                   space_embedding_dim * 2,
-                                                                  1,
+                                                                  kernel_size=1,
                                                                   stride=1),
                                                nn.ReLU(),
                                                nn.ConvTranspose1d(space_embedding_dim * 2,
                                                                   n_channels,
-                                                                  1,
+                                                                  kernel_size=1,
                                                                   stride=1),
                                                nn.ReLU())
 

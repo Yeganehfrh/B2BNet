@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch  # noqa
 from torch import nn
 from .spacetime_autoencoder import SpaceTimeAutoEncoder
+from .spacetime_encoder import SpaceTimeEncoder
 import torchmetrics.functional as tmf
 from .b2b_head import B2BHead
 
@@ -9,7 +10,7 @@ from .b2b_head import B2BHead
 class B2BNetSpaceTimeModel(pl.LightningModule):
     def __init__(self,
                  n_channels, space_embedding_dim, time_embedding_dim,
-                 n_subjects, kernel_size=1, b2b=False):
+                 n_subjects, kernel_size=1, b2b='decoder'):
         super().__init__()
 
         self.n_subjects = n_subjects
@@ -22,33 +23,44 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         # classifier head
         self.cls = nn.Linear(time_embedding_dim, 2)
 
-        if b2b:
-            self.b2b_head = B2BHead(time_embedding_dim, space_embedding_dim, n_channels)
+        if self.b2b == 'decoder':
+            self.b2b_head = B2BHead(n_channels, space_embedding_dim, time_embedding_dim)
 
-    def forward(self, x):
+        if self.b2b == 'embedding':
+            self.b2b_head = SpaceTimeEncoder(n_channels, space_embedding_dim, time_embedding_dim, kernel_size=1)
 
+    def forward(self, x, x_b2b):
         # autoencoder
         embedding, y_hat = self.autoencoder(x)
         y_cls = self.cls(embedding[-1, :, :])
 
-        if self.b2b:
+        if self.b2b == 'decoder':
             y_b2b_hat = self.b2b_head(embedding, n_timesteps=x.shape[1])
-            return y_cls, y_hat[:, -1, :], y_b2b_hat[:, -1, :]
+            return y_cls, y_hat[:, -1, :], y_b2b_hat[:, -1, :], None, None
+
+        elif self.b2b == 'embedding':
+            embedding_b2b = self.b2b_head(x_b2b)
+            return y_cls, y_hat[:, -1, :], None, embedding, embedding_b2b
 
         else:
-            return y_cls, y_hat[:, -1, :], None
+            return y_cls, y_hat[:, -1, :], None, None, None
 
     def training_step(self, batch, batch_idx):
-        x, y, subject_ids, y_b2b, y_cls = batch
-        y_cls_hat, y_hat, y_b2b_hat = self(x)
+        x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
+        y_cls_hat, y_hat, y_b2b_hat, embedding, embedding_b2b = self(x, x_b2b)
 
         # loss
         loss_reconn = nn.functional.mse_loss(y_hat, y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
         loss = loss_cls + loss_reconn
 
-        if self.b2b:
+        if self.b2b == 'decoder':
             loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+            loss = loss + loss_b2b
+            self.log('train/loss_b2b', loss_b2b)
+
+        if self.b2b == 'embedding':
+            loss_b2b = nn.functional.mse_loss(embedding_b2b, embedding)
             loss = loss + loss_b2b
             self.log('train/loss_b2b', loss_b2b)
 
@@ -64,16 +76,21 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, subject_ids, y_b2b, y_cls = batch
-        y_cls_hat, y_hat, y_b2b_hat = self(x)
+        x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
+        y_cls_hat, y_hat, y_b2b_hat, embedding, embedding_b2b = self(x, x_b2b)
 
         # loss
         loss_reconn = nn.functional.mse_loss(y_hat, y)
         loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
         loss = loss_cls + loss_reconn
 
-        if self.b2b:
+        if self.b2b == 'decoder':
             loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
+            loss = loss + loss_b2b
+            self.log('train/loss_b2b', loss_b2b)
+
+        if self.b2b == 'embedding':
+            loss_b2b = nn.functional.mse_loss(embedding_b2b, embedding)
             loss = loss + loss_b2b
             self.log('train/loss_b2b', loss_b2b)
 

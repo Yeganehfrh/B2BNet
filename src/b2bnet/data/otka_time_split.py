@@ -18,7 +18,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  segment_size: int = 128,
                  batch_size: int = 32,
                  filter: bool = False,
-                 b2b_data: str = 'hypnotist',
+                 b2b_data: str = None,
                  data_mode: str = 'simple_reconstruction',
                  ):
         super().__init__()
@@ -27,6 +27,8 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.segment_size = segment_size
         self.batch_size = batch_size
         self.filter = filter
+        self.b2b_data = b2b_data
+        self.data_mode = data_mode
 
         assert self.data_mode in ['reconn', 'pad', 'lag', 'mask', 'crop']
         assert self.b2b_data in ['hypnotist', 'subject', 'random', None]
@@ -36,9 +38,6 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         ds = xr.open_dataset(self.data_dir / 'otka.nc5')
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
-        
-        # b2b head data is None by default unless specified
-        X_b2b_test = X_b2b_train = y_b2b_train = y_b2b_test = None
 
         # cut point for train/test split
         cut_point = int(X_input.shape[1] * self.train_ratio)
@@ -63,13 +62,13 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                                                                                 self.data_mode,
                                                                                 cut_point,
                                                                                 self.segment_size)
-
         ds.close()
 
-        if filter:
+        if self.filter:
             sos = butter(4, [30, 50], 'bp', fs=128, output='sos')
             X_input = torch.from_numpy(sosfiltfilt(sos, X_input, axis=1).copy()).float()
-            X_b2b = torch.from_numpy(sosfiltfilt(sos, X_b2b, axis=1).copy()).float()
+            X_b2b_train = torch.from_numpy(sosfiltfilt(sos, X_b2b_train, axis=1).copy()).float()
+            X_b2b_test = torch.from_numpy(sosfiltfilt(sos, X_b2b_test, axis=1).copy()).float()
 
         # segment
         X_input = X_input.unfold(1, self.segment_size, self.segment_size).permute(0, 1, 3, 2)
@@ -108,6 +107,11 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         if self.data_mode == 'crop':
             X_train_in, X_train_out = crop(X_train, crop_length=1, flatten=True), X_train[:, :, -1, :].flatten(0, 1)
             X_test_in, X_test_out = crop(X_test, crop_length=1, flatten=True), X_test[:, :, -1, :].flatten(0, 1)
+
+        if self.b2b_data is None:
+            # if b2b head data is None, create these variables as placeholders with the same shape as the X_input data
+            X_b2b_train, y_b2b_train = torch.empty_like(X_train_in), torch.empty_like(X_train_out)
+            X_b2b_test, y_b2b_test = torch.empty_like(X_test_in), torch.empty_like(X_test_out)
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,
