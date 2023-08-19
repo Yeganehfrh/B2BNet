@@ -1,4 +1,6 @@
+import torch
 import torch.nn.functional as F
+from scipy.signal import butter, sosfiltfilt
 
 
 def pad(x, pad_length=64,
@@ -51,7 +53,37 @@ def crop(x, crop_length=1, flatten=True):
     return x[:, :, :-crop_length, :].flatten(0, 1)
 
 
-def b2b_data_handler(X_b2b, data_mode, cut_point, segment_size):
+def bandpass_filter(x, bandpass, sf=128):
+    """Bandpass filter input tensor.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor
+    bandpass : list
+        Bandpass frequencies
+    sf : int
+        Sampling frequency, defaults to 128
+
+    Returns
+    -------
+    torch.Tensor
+        Filtered tensor
+    """
+
+    print(f'>>>>>> Filtering data with bandpass filter {bandpass} Hz')
+    sos = butter(4, bandpass, 'bp', sf=sf, output='sos')
+    x = torch.from_numpy(sosfiltfilt(sos, x, axis=1).copy()).float()
+    return x
+
+
+def b2b_data_handler(X_b2b, data_mode, cut_point, segment_size, filter=False, bandpass=[30, 50]):
+
+    if filter:
+        X_b2b = bandpass_filter(X_b2b, bandpass=bandpass)
+
+    X_b2b = X_b2b.unfold(1, segment_size, segment_size).permute(0, 1, 3, 2)
+
     # train/test split & normalization
     b2b_train = F.normalize(X_b2b[:, :cut_point, :, :], dim=2)
     b2b_test = F.normalize(X_b2b[:, cut_point:, :, :], dim=2)

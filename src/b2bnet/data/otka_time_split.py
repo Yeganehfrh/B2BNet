@@ -4,8 +4,7 @@ import torch.nn.functional as F
 import xarray as xr
 from torch.utils.data import DataLoader
 from pathlib import Path
-from scipy.signal import butter, sosfiltfilt
-from ..utils.timeseries import pad, lag, mask, crop, b2b_data_handler
+from ..utils.timeseries import pad, lag, mask, crop, bandpass_filter, b2b_data_handler
 
 
 class OtkaTimeDimSplit(pl.LightningDataModule):
@@ -18,8 +17,9 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  segment_size: int = 128,
                  batch_size: int = 32,
                  filter: bool = False,
+                 bandpass: list = [30, 50],
                  b2b_data: str = None,
-                 data_mode: str = 'simple_reconstruction',
+                 data_mode: str = 'reconn',
                  ):
         super().__init__()
         self.data_dir = data_dir
@@ -27,6 +27,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.segment_size = segment_size
         self.batch_size = batch_size
         self.filter = filter
+        self.bandpass = bandpass
         self.b2b_data = b2b_data
         self.data_mode = data_mode
 
@@ -39,36 +40,8 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
 
-        # cut point for train/test split
-        cut_point = int(X_input.shape[1] * self.train_ratio)
-
-        if self.b2b_data == 'random':
-            X_b2b = torch.randn(1,
-                                X_input.shape[1],
-                                X_input.shape[2]).repeat(X_input.shape[0], 1, 1)
-
-        if self.b2b_data == 'subject':
-            X_b2b = X_input[0, :, :].repeat(X_input.shape[0] - 1, 1, 1)
-            X_input = X_input[1:, :, :]
-            y_class = torch.from_numpy(ds['y_class'].values)[1:]
-
-        if self.b2b_data == 'hypnotist':
-            X_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
-            X_b2b = X_b2b[:, :X_input.shape[1], :]  # truncate y_b2b to match X_input
-
-        if self.b2b_data is not None:
-            X_b2b = X_b2b.unfold(1, self.segment_size, self.segment_size).permute(0, 1, 3, 2)
-            X_b2b_train, y_b2b_train, X_b2b_test, y_b2b_test = b2b_data_handler(X_b2b,
-                                                                                self.data_mode,
-                                                                                cut_point,
-                                                                                self.segment_size)
-        ds.close()
-
         if self.filter:
-            sos = butter(4, [30, 50], 'bp', fs=128, output='sos')
-            X_input = torch.from_numpy(sosfiltfilt(sos, X_input, axis=1).copy()).float()
-            X_b2b_train = torch.from_numpy(sosfiltfilt(sos, X_b2b_train, axis=1).copy()).float()
-            X_b2b_test = torch.from_numpy(sosfiltfilt(sos, X_b2b_test, axis=1).copy()).float()
+            X_input = bandpass_filter(X_input, bandpass=self.bandpass)
 
         # segment
         X_input = X_input.unfold(1, self.segment_size, self.segment_size).permute(0, 1, 3, 2)
@@ -79,10 +52,41 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # create subject ids
         subject_ids = torch.arange(0, X_input.shape[0]).reshape(-1, 1, 1).repeat(1, X_input.shape[1], 1)
 
+        # cut point for train/test split
+        cut_point = int(X_input.shape[1] * self.train_ratio)
+
+        # b2b head data
+        if self.b2b_data == 'random':
+            print('>>>>>> Using random data in b2b head')
+            X_b2b = torch.randn(1,
+                                X_input.shape[1],
+                                X_input.shape[2]).repeat(X_input.shape[0], 1, 1)
+
+        if self.b2b_data == 'subject':
+            print('>>>>>> Using subject data in b2b head')
+            X_b2b = X_input[0, :, :].repeat(X_input.shape[0] - 1, 1, 1)
+            X_input = X_input[1:, :, :]
+            y_class = torch.from_numpy(ds['y_class'].values)[1:]
+
+        if self.b2b_data == 'hypnotist':
+            print('>>>>>> Using hypnotist data in b2b head')
+            X_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
+            X_b2b = X_b2b[:, :X_input.shape[1], :]  # truncate y_b2b to match X_input
+
+        if self.b2b_data is not None:
+            X_b2b_train, y_b2b_train, X_b2b_test, y_b2b_test = b2b_data_handler(X_b2b,
+                                                                                self.data_mode,
+                                                                                cut_point,
+                                                                                self.segment_size,
+                                                                                self.filter,
+                                                                                self.bandpass)
+        ds.close()
+
         # train/test split & normalization
         # TODO: should we normalize after flatening? or instead normalize over dimension 1?
         X_train = F.normalize(X_input[:, :cut_point, :, :], dim=2)
         X_test = F.normalize(X_input[:, cut_point:, :, :], dim=2)
+        print(f'>>>>>> test set shape: {X_test.shape}')
 
         if self.data_mode == 'reconn':
             X_train_in = X_train_out = X_train.flatten(0, 1)
@@ -107,11 +111,13 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         if self.data_mode == 'crop':
             X_train_in, X_train_out = crop(X_train, crop_length=1, flatten=True), X_train[:, :, -1, :].flatten(0, 1)
             X_test_in, X_test_out = crop(X_test, crop_length=1, flatten=True), X_test[:, :, -1, :].flatten(0, 1)
+            print(f'>>>>>> X_test_in shape: {X_test_in.shape}')
 
         if self.b2b_data is None:
             # if b2b head data is None, create these variables as placeholders with the same shape as the X_input data
             X_b2b_train, y_b2b_train = torch.empty_like(X_train_in), torch.empty_like(X_train_out)
             X_b2b_test, y_b2b_test = torch.empty_like(X_test_in), torch.empty_like(X_test_out)
+            print(f'>>>>>> X_b2b test set shape: {X_b2b_test.shape}')
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,
