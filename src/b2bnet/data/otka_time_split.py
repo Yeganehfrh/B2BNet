@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import xarray as xr
+from typing import Literal
 from torch.utils.data import DataLoader
 from pathlib import Path
 from ..utils.timeseries import pad, lag, mask, crop, bandpass_filter, b2b_data_handler
@@ -18,8 +19,8 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
                  batch_size: int = 32,
                  filter: bool = False,
                  bandpass: list = [30, 50],
-                 b2b_data: str = None,
-                 data_mode: str = 'reconn',
+                 b2b_data: Literal['hypnotist', 'subject', 'random'] | None = None,
+                 data_mode: Literal['reconn', 'pad', 'lag', 'mask', 'crop'] = 'crop',
                  ):
         super().__init__()
         self.data_dir = data_dir
@@ -30,9 +31,6 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         self.bandpass = bandpass
         self.b2b_data = b2b_data
         self.data_mode = data_mode
-
-        assert self.data_mode in ['reconn', 'pad', 'lag', 'mask', 'crop']
-        assert self.b2b_data in ['hypnotist', 'subject', 'random', None]
 
     def prepare_data(self):
         # read data from file

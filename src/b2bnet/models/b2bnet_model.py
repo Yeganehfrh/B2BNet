@@ -5,18 +5,18 @@ from .spacetime_autoencoder import SpaceTimeAutoEncoder
 from .spacetime_encoder import SpaceTimeEncoder
 import torchmetrics.functional as tmf
 from .b2b_head import B2BHead
+from typing import Literal
 
 
 class B2BNetSpaceTimeModel(pl.LightningModule):
     def __init__(self,
                  n_channels, space_embedding_dim, time_embedding_dim,
-                 n_subjects, kernel_size=1, base='autoencoder', b2b='decoder'):
+                 n_subjects, kernel_size=1,
+                 base: Literal['autoencoder', 'encoder'] = 'encoder',
+                 b2b: Literal['decoder', 'embedding'] | None = None):
         super().__init__()
         self.b2b = b2b
         self.base = base
-
-        assert base in ['autoencoder', 'encoder']
-        assert b2b in ['decoder', 'embedding', None]
 
         # baseline
         if self.base == 'autoencoder':
