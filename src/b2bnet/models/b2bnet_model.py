@@ -106,17 +106,17 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         if self.base == 'autoencoder':
             loss_reconn = nn.functional.mse_loss(y_hat, y)
             loss += loss_reconn
-            self.log('train/loss_reconn', loss_reconn)
+            self.log('val/loss_reconn', loss_reconn)
 
         if self.b2b == 'decoder':
             loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
             loss += loss_b2b
-            self.log('train/loss_b2b', loss_b2b)
+            self.log('val/loss_b2b', loss_b2b)
 
         if self.b2b == 'embedding':
             loss_b2b = nn.functional.mse_loss(embedding_b2b, embedding)
             loss += loss_b2b
-            self.log('train/loss_b2b', loss_b2b)
+            self.log('val/loss_b2b', loss_b2b)
 
         self.log('val/loss', loss)
         return loss
