@@ -80,6 +80,7 @@ def bandpass_filter(x, bandpass, sf=128):
 def b2b_data_handler(X_b2b, data_mode, cut_point, segment_size, filter=False, bandpass=[30, 50]):
 
     if filter:
+        print(f'>>>>>> Filtering HYPNOTIST data with bandpass filter {bandpass} Hz')
         X_b2b = bandpass_filter(X_b2b, bandpass=bandpass)
 
     X_b2b = X_b2b.unfold(1, segment_size, segment_size).permute(0, 1, 3, 2)

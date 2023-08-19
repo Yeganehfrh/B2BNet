@@ -34,4 +34,4 @@ class SpaceTimeEncoder(pl.LightningModule):
         # temporal encoding
         y_time_enc, (h_enc, c_enc) = self.time_encoder(y_space_enc.permute(0, 2, 1))
 
-        return h_enc
+        return h_enc, y_time_enc

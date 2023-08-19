@@ -39,6 +39,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         ds = xr.open_dataset(self.data_dir / 'otka.nc5')
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
+        timesteps = X_input.shape[1]
 
         if self.filter:
             X_input = bandpass_filter(X_input, bandpass=self.bandpass)
@@ -71,7 +72,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         if self.b2b_data == 'hypnotist':
             print('>>>>>> Using hypnotist data in b2b head')
             X_b2b = torch.from_numpy(ds['hypnotist'].values).float().repeat(X_input.shape[0], 1, 1).permute(0, 2, 1)
-            X_b2b = X_b2b[:, :X_input.shape[1], :]  # truncate y_b2b to match X_input
+            X_b2b = X_b2b[:, :timesteps, :]  # truncate y_b2b to match X_input
 
         if self.b2b_data is not None:
             X_b2b_train, y_b2b_train, X_b2b_test, y_b2b_test = b2b_data_handler(X_b2b,
@@ -86,7 +87,6 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         # TODO: should we normalize after flatening? or instead normalize over dimension 1?
         X_train = F.normalize(X_input[:, :cut_point, :, :], dim=2)
         X_test = F.normalize(X_input[:, cut_point:, :, :], dim=2)
-        print(f'>>>>>> test set shape: {X_test.shape}')
 
         if self.data_mode == 'reconn':
             X_train_in = X_train_out = X_train.flatten(0, 1)
@@ -111,13 +111,11 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         if self.data_mode == 'crop':
             X_train_in, X_train_out = crop(X_train, crop_length=1, flatten=True), X_train[:, :, -1, :].flatten(0, 1)
             X_test_in, X_test_out = crop(X_test, crop_length=1, flatten=True), X_test[:, :, -1, :].flatten(0, 1)
-            print(f'>>>>>> X_test_in shape: {X_test_in.shape}')
 
         if self.b2b_data is None:
             # if b2b head data is None, create these variables as placeholders with the same shape as the X_input data
             X_b2b_train, y_b2b_train = torch.empty_like(X_train_in), torch.empty_like(X_train_out)
             X_b2b_test, y_b2b_test = torch.empty_like(X_test_in), torch.empty_like(X_test_out)
-            print(f'>>>>>> X_b2b test set shape: {X_b2b_test.shape}')
 
         self.train_dataset = torch.utils.data.TensorDataset(
             X_train_in,
