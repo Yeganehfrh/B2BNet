@@ -48,7 +48,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
     def forward(self, x, x_b2b):
 
         # baseline
-        embedding, y_hat = self.baseline(x)
+        y_hat, embedding = self.baseline(x)
 
         y_b2b_hat = embedding_b2b = y_cls = None  # default values
 
@@ -57,7 +57,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
             y_b2b_hat = self.b2b_head(embedding, n_timesteps=x.shape[1])
 
         if self.b2b == 'embedding':
-            embedding_b2b, _ = self.b2b_head(x_b2b)
+            _, embedding_b2b = self.b2b_head(x_b2b)
 
         # classifier
         if self.classifier:
@@ -68,7 +68,7 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         embedding, y_hat, y_b2b_hat, embedding_b2b, y_cls_hat = self(x, x_b2b)
-        
+
         loss_reconn = nn.functional.mse_loss(y_hat, y)
         loss = loss_reconn
         self.log('train/loss_reconn', loss_reconn)

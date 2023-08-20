@@ -46,9 +46,8 @@ class SpaceTimeAutoEncoder(nn.Module):
         y_space_enc = self.space_encoder(x.permute(0, 2, 1))
 
         # temporal encoding
-        y_time_enc, (h_enc, c_enc) = self.time_encoder(y_space_enc.permute(0, 2, 1))
-        embedding = h_enc
-        h_enc = h_enc.permute(1, 0, 2).repeat(1, n_timesteps, 1)
+        y_time_enc, (embedding, c_enc) = self.time_encoder(y_space_enc.permute(0, 2, 1))
+        h_enc = embedding.permute(1, 0, 2).repeat(1, n_timesteps, 1)
         y_time_dec, (_, _) = self.time_decoder(h_enc)
 
         # spatial decoding
@@ -56,4 +55,4 @@ class SpaceTimeAutoEncoder(nn.Module):
 
         y_dec = x_space_dec.permute(0, 2, 1)
 
-        return embedding, y_dec
+        return y_dec, embedding

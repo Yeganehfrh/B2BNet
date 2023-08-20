@@ -33,4 +33,4 @@ class SpaceTimeEncoder(nn.Module):
         # temporal encoding
         y_time_enc, (h_enc, c_enc) = self.time_encoder(y_space_enc.permute(0, 2, 1))
 
-        return h_enc, y_time_enc
+        return y_time_enc, h_enc
