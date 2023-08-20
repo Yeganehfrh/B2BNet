@@ -1,7 +1,4 @@
-import torch  # noqa
-import pytorch_lightning as pl # noqa
 from torch import nn
-import torch.nn.functional as F  # noqa
 
 
 class SpaceTimeAutoEncoder(nn.Module):

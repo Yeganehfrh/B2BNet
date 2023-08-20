@@ -1,8 +1,7 @@
 from torch import nn
-import pytorch_lightning as pl
 
 
-class SpaceTimeEncoder(pl.LightningModule):
+class SpaceTimeEncoder(nn.Module):
     """B2B head for the B2BNet model, but returns the embedding to compare with the 
     participants embeddings.
     """
@@ -21,7 +20,7 @@ class SpaceTimeEncoder(pl.LightningModule):
             nn.Conv1d(space_embedding_dim * 2, space_embedding_dim, kernel_size),
             nn.ReLU())
 
-        # temporal auto-encoder
+        # temporal encoder
         self.time_encoder = nn.LSTM(
             self.space_embedding_dim,
             self.time_embedding_dim,
