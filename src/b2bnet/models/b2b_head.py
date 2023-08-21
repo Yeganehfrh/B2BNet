@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 class B2BHead(pl.LightningModule):
     """B2B head for the B2BNet model"""
 
-    def __init__(self, n_channels: int, time_embedding_dim: int, space_embedding_dim: int):
+    def __init__(self, n_channels: int, space_embedding_dim: int, time_embedding_dim: int):
         super().__init__()
 
         # b2b head
