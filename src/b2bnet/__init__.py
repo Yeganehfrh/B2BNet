@@ -5,7 +5,8 @@ from .data.otka_subject_split import OtkaDataModule
 from .data.otka_time_split import OtkaTimeDimSplit
 from .models.b2bnet_model import B2BNetSpaceTimeModel  # noqa
 from .models.archived.bidirectional_lstm import BidirectionalLSTM  # noqa
-from .utils.timeseries import lag, pad  # noqa
+from .utils.timeseries import lag
+from .models.classifier import Classifier
 
 __all__ = [
     'B2BNetModel',
@@ -14,7 +15,7 @@ __all__ = [
     'OtkaTimeDimSplit',
     'TCN',
     'B2BNetSpaceTimeModel'
-    'BidirectionalLSTM'
-    'padding',
-    'lag'
+    'BidirectionalLSTM',
+    'lag',
+    'Classifier'
 ]
