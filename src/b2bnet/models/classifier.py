@@ -45,6 +45,7 @@ class Classifier(pl.LightningModule):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         _, h_b2b = self.encoder.baseline(x_b2b)  # pretrain
         y_cls_hat, h_b2b_hat = self.forward(x)
+
         loss_cls = F.cross_entropy(y_cls_hat, y_cls)
         accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
         self.log('train/accuracy', accuracy)
@@ -54,7 +55,9 @@ class Classifier(pl.LightningModule):
             loss_b2b = F.mse_loss(h_b2b_hat, h_b2b)
             self.log('train/loss_b2b', loss_b2b)
             loss += loss_b2b
-        return {'loss': loss}
+
+        self.log('train/loss', loss)
+        return loss
 
     def validation_step(self, batch, batch_idx):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
@@ -69,7 +72,9 @@ class Classifier(pl.LightningModule):
             loss_b2b = F.mse_loss(h_b2b_hat, h_b2b)
             self.log('val/loss_b2b', loss_b2b)
             loss += loss_b2b
-        return {'loss': loss}
+
+        self.log('val/loss', loss)
+        return loss
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
