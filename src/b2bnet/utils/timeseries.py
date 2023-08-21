@@ -92,8 +92,8 @@ def b2b_data_handler(X_b2b, data_mode, cut_point, segment_size, filter=False, ba
     padding_length = overlap = mask_length = segment_size // 6  # proportional to the segment length
 
     if data_mode == 'reconn':
-        X_b2b_train = b2b_train = b2b_train.flatten(0, 1)
-        X_b2b_test = b2b_test = b2b_test.flatten(0, 1)
+        X_b2b_train = y_b2b_train = b2b_train.flatten(0, 1)
+        X_b2b_test = y_b2b_test = b2b_test.flatten(0, 1)
 
     if data_mode == 'pad':
         X_b2b_train, y_b2b_train = pad(b2b_train, padding_length, flatten=True)
