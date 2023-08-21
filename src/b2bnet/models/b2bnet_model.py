@@ -14,13 +14,15 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
                  n_subjects, kernel_size=1,
                  encoder_arch: Literal['autoencoder', 'encoder_only'] = 'encoder_only',
                  b2b: Literal['decoder', 'embedding'] | None = None,
-                 classifier: bool = True):
+                 classifier: bool = True,
+                 data_mode: Literal['reconn', 'pad', 'lag', 'mask', 'crop'] = 'reconn'):
         super().__init__()
         self.save_hyperparameters()
         self.b2b = b2b
         self.encoder_arch = encoder_arch
         self.classifier = classifier
         self.n_subjects = n_subjects
+        self.data_mode = data_mode
 
         # baseline
         if self.encoder_arch == 'autoencoder':
@@ -63,27 +65,41 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         if self.classifier:
             y_cls = self.cls(embedding[-1, :, :])
 
-        return embedding, y_hat[:, -1, :], y_b2b_hat, embedding_b2b, y_cls
+        if self.data_mode == 'crop':
+            y_hat = y_hat[:, -1, :]
+
+        return embedding, y_hat, y_b2b_hat, embedding_b2b, y_cls
 
     def training_step(self, batch, batch_idx):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         embedding, y_hat, y_b2b_hat, embedding_b2b, y_cls_hat = self(x, x_b2b)
 
-        loss_reconn = nn.functional.mse_loss(y_hat, y)
-        loss = loss_reconn
-        self.log('train/loss_reconn', loss_reconn)
+        loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
+        self.log('train/loss_cls', loss_cls)
+        loss = loss_cls
+
+        accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        self.log('train/accuracy', accuracy)
+
+        if self.encoder_arch == 'autoencoder':
+            loss_reconn = nn.functional.mse_loss(y_hat, y)
+            loss += loss_reconn
+            self.log('train/loss_reconn', loss_reconn)
 
         # loss & logging
-        if self.classifier:
-            loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
-            self.log('train/loss_cls', loss_cls)
-            loss += loss_cls
+        # if self.classifier:
+        #     loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
+        #     self.log('train/loss_cls', loss_cls)
+        #     loss += loss_cls
 
-            accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
-            self.log('train/accuracy', accuracy)
+        #     accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        #     self.log('train/accuracy', accuracy)
 
         if self.b2b == 'decoder':
-            loss_b2b = nn.functional.mse_loss(y_b2b_hat[:, -1, :], y_b2b)
+            if self.data_mode == 'crop':
+                y_b2b_hat = y_b2b_hat[:, -1, :]
+
+            loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
             loss += loss_b2b
             self.log('train/loss_b2b', loss_b2b)
 
@@ -99,20 +115,30 @@ class B2BNetSpaceTimeModel(pl.LightningModule):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         embedding, y_hat, y_b2b_hat, embedding_b2b, y_cls_hat = self(x, x_b2b)
 
-        loss_reconn = nn.functional.mse_loss(y_hat, y)
-        loss = loss_reconn
-        self.log('val/loss_reconn', loss_reconn)
+        loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
+        self.log('val/loss_cls', loss_cls)
+        loss = loss_cls
+        accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        self.log('val/accuracy', accuracy)
 
-        # losses & logging
-        if self.classifier:
-            loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
-            self.log('val/loss_cls', loss_cls)
-            loss += loss_cls
-            accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
-            self.log('val/accuracy', accuracy)
+        if self.encoder_arch == 'autoencoder':
+            loss_reconn = nn.functional.mse_loss(y_hat, y)
+            loss += loss_reconn
+            self.log('val/loss_reconn', loss_reconn)
+
+        # # losses & logging
+        # if self.classifier:
+        #     loss_cls = nn.functional.cross_entropy(y_cls_hat, y_cls)
+        #     self.log('val/loss_cls', loss_cls)
+        #     loss += loss_cls
+        #     accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
+        #     self.log('val/accuracy', accuracy)
 
         if self.b2b == 'decoder':
-            loss_b2b = nn.functional.mse_loss(y_b2b_hat[:, -1, :], y_b2b)
+            if self.data_mode == 'crop':
+                y_b2b_hat = y_b2b_hat[:, -1, :]
+
+            loss_b2b = nn.functional.mse_loss(y_b2b_hat, y_b2b)
             loss += loss_b2b
             self.log('val/loss_b2b', loss_b2b)
 
