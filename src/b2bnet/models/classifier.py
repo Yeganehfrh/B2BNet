@@ -14,6 +14,7 @@ class Classifier(pl.LightningModule):
         super().__init__()
 
         self.with_b2b_head = with_b2b_head
+        self.save_hyperparameters()
 
         self.encoder = B2BNetSpaceTimeModel.load_from_checkpoint(pretrained_encoder_checkpoint_path)
         self.embeddings_dim = self.encoder.baseline.time_embedding_dim
