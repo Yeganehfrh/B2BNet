@@ -45,6 +45,7 @@ class Classifier(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         _, h_b2b = self.encoder.baseline(x_b2b)  # pretrain
+        h_b2b = h_b2b.squeeze(0)
         y_cls_hat, h_b2b_hat = self.forward(x)
 
         loss_cls = F.cross_entropy(y_cls_hat, y_cls)
@@ -63,7 +64,9 @@ class Classifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y, subject_ids, x_b2b, y_b2b, y_cls = batch
         _, h_b2b = self.encoder.baseline(x_b2b)
+        h_b2b = h_b2b.squeeze(0)
         y_cls_hat, h_b2b_hat = self.forward(x)
+
         loss_cls = F.cross_entropy(y_cls_hat, y_cls)
         accuracy = tmf.accuracy(y_cls_hat, y_cls, task='multiclass', num_classes=2)
         self.log('val/accuracy', accuracy)
