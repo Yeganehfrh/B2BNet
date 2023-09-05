@@ -13,7 +13,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
     time dimension.
     """
     def __init__(self,
-                 data_dir: Path = Path('data/'),
+                 data_dir: Path = Path('data/otka.nc5'),
                  train_ratio: float = 0.7,
                  segment_size: int = 128,
                  batch_size: int = 32,
@@ -34,7 +34,7 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
 
     def prepare_data(self):
         # read data from file
-        ds = xr.open_dataset(self.data_dir / 'otka.nc5')
+        ds = xr.open_dataset(self.data_dir)
         X_input = torch.from_numpy(ds['hypnotee'].values).float().permute(0, 2, 1)
         y_class = torch.from_numpy(ds['y_class'].values)
         timesteps = X_input.shape[1]
@@ -58,8 +58,8 @@ class OtkaTimeDimSplit(pl.LightningDataModule):
         if self.b2b_data == 'random':
             print('>>>>>> Using random data in b2b head')
             X_b2b = torch.randn(1,
-                                X_input.shape[1],
-                                X_input.shape[2]).repeat(X_input.shape[0], 1, 1)
+                                timesteps,
+                                X_input.shape[-1]).repeat(X_input.shape[0], 1, 1)
 
         if self.b2b_data == 'subject':
             print('>>>>>> Using subject data in b2b head')
